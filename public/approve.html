@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HousingIntel — Approve leads</title><style>body{background:#101827;color:#edf2fb;font:16px system-ui;margin:0}main{max-width:650px;margin:auto;padding:20px}input,button{font:inherit;padding:12px;border-radius:8px}input{background:#1b2940;color:white;border:1px solid #53627a;width:100%;box-sizing:border-box}button{background:#b4f0ce;border:0;margin:8px 0;color:#11221c;font-weight:700}article{background:#1b2940;border:1px solid #53627a;border-radius:10px;padding:16px;margin:12px 0}a{color:#b4f0ce}small{color:#bdcbe0}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><main><h1>Pending rental reviews</h1><p>Authorized reviewers only. Approval publishes the source record; it does <strong>not</strong> verify vacancy, voucher eligibility, or rent.</p><label for="token">Review token</label><input id="token" type="password" autocomplete="off" placeholder="HOUSING_IMPORT_TOKEN"><button id="load">Load pending</button><p id="status" role="status"></p><section id="queue"></section><p><a href="/">Dashboard</a></p></main><script>
+const token=document.getElementById('token'),status=document.getElementById('status'),queue=document.getElementById('queue');
+const auth=()=>({'Authorization':'Bearer '+token.value.trim()});
+async function load(){
+ queue.replaceChildren();status.textContent='Loading…';
+ try{const r=await fetch('/api/review-submissions',{headers:auth(),cache:'no-store'});if(!r.ok)throw Error('Queue HTTP '+r.status);
+ const d=await r.json();status.textContent=d.queue.length+' pending lead(s)';
+ for(const item of d.queue){
+ const p=item.payload||{};const article=document.createElement('article');
+ const heading=document.createElement('h2');heading.textContent=p.address+', '+p.city;article.append(heading);
+ const facts=document.createElement('p');facts.textContent='Source: '+item.source+' | Beds: '+(p.bedrooms??'unknown')+' | Rent: '+(p.rent==null?'unknown':'$'+p.rent)+' | Availability: UNVERIFIED';article.append(facts);
+ const link=document.createElement('a');link.href=p.source_url;link.textContent='Original source';link.target='_blank';link.rel='noopener noreferrer';article.append(link);
+ const button=document.createElement('button');button.textContent='Approve this lead';button.onclick=async()=>{
+ if(!confirm('Publish this source record? This does not verify availability or voucher eligibility.'))return;
+ button.disabled=true;try{const r=await fetch('/api/approve',{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'Approval failed');status.textContent='Approved '+item.id;article.remove();
+ }catch(e){status.textContent=e.message;button.disabled=false;}
+ };article.append(document.createElement('br'),button);queue.append(article);
+ }
+ }catch(e){status.textContent=e.message;}
+}
+document.getElementById('load').onclick=load;
+</script></body></html>
