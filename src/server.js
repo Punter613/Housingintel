@@ -6,6 +6,7 @@ const { database,initDb } = require('./db');
 const { evaluateGrossRent } = require('./eligibility');
 const {authorized,submit}=require('./submissions');
 const {submitPublic}=require('./public-leads');
+const {approve}=require('./approve');
 const port = Number(process.env.PORT || 10000);
 const server = http.createServer(async (req, res) => {
   const send = (status, data) => {
@@ -59,6 +60,22 @@ const server = http.createServer(async (req, res) => {
       const db=database();if(!db)return send(503,{error:'database_not_configured'});
       try{const result=await submit(req,db);return send(202,{accepted:true,id:result.id,status:result.status});}
       catch(e){if(e instanceof SyntaxError||/Row |Import must|Duplicate source|Exactly one listing/.test(e.message))return send(400,{error:'invalid_listing',detail:e.message});return send(e.status||503,{error:e.status===413?'payload_too_large':e.status===409?'review_locked':'service_unavailable'});}
+    }
+    if(req.method==='POST' && url.pathname==='/api/approve'){
+      if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
+      if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(415,{error:'json_required'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      try{
+        const {readBody}=require('./submissions');
+        const body=JSON.parse(await readBody(req));
+        if(!body||typeof body!=='object'||Array.isArray(body))return send(400,{error:'invalid_request'});
+        return send(200,await approve(db,body.id));
+      }catch(e){
+        if(e instanceof SyntaxError)return send(400,{error:'invalid_json'});
+        if([400,404,409,413].includes(e.status))return send(e.status,{error:e.message});
+        console.error('[approval]',e.message);
+        return send(503,{error:'service_unavailable'});
+      }
     }
     if(req.method==='GET' && url.pathname==='/api/collection-status'){
       const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','config','sources.json'),'utf8'));
