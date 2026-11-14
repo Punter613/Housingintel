@@ -56,6 +56,15 @@ function jsonLd(text){
  function visit(obj){if(Array.isArray(obj)){obj.forEach(visit);return;}if(!obj||typeof obj!=='object')return;nodes.push(obj);if(obj['@graph'])visit(obj['@graph']);}
  blocks.forEach(visit);return nodes;
 }
+function sourceFor(url){
+ const host=safeUrl(url).hostname.toLowerCase();
+ if(host==='affordablehousing.com'||host.endsWith('.affordablehousing.com'))return 'affordablehousing';
+ if(host==='zillow.com'||host.endsWith('.zillow.com'))return 'zillow';
+ if(host==='apartments.com'||host.endsWith('.apartments.com'))return 'apartments';
+ if(host==='ohiohousinglocator.org'||host.endsWith('.ohiohousinglocator.org'))return 'ohio_housing_locator';
+ if(host==='trumbulltmha.org'||host.endsWith('.trumbulltmha.org'))return 'tmha';
+ return 'manual_other';
+}
 function extract(html,url){
  const nodes=jsonLd(html),out=[];
  for(const n of nodes){
@@ -69,7 +78,7 @@ function extract(html,url){
   const rent=offer.price??null;
   const beds=n.numberOfBedrooms??null;
   const sourceId='ld-'+crypto.createHash('sha256').update(url+'|'+(n['@id']||n.url||address)).digest('hex');
-  try{out.push(validate({source:'manual_other',sourceId,source_url:url,address,city,zip,state:'OH',bedrooms:beds,rent},out.length));}catch{}
+  try{out.push(validate({source:sourceFor(url),sourceId,source_url:url,address,city,zip,state:'OH',bedrooms:beds,rent,importMethod:'AUTOMATED_JSON_LD'},out.length));}catch{}
  }
  return out;
 }
@@ -112,4 +121,4 @@ async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,st
  }
  return report;
 }
-module.exports={safeUrl,robotsRules,allowedByRobots,jsonLd,extract,discoverLinks,collectSources};
+module.exports={safeUrl,robotsRules,allowedByRobots,jsonLd,sourceFor,extract,discoverLinks,collectSources};
