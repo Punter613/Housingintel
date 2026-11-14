@@ -13,7 +13,13 @@ test('valid submission queues pending without publishing',async()=>{
  const payload=JSON.stringify([row]);
  const req={async *[Symbol.asyncIterator](){yield Buffer.from(payload);}};
  let sql='';
- const db={async query(query,values){sql=query;assert.equal(values[3].includes('UNVERIFIED'),true);return {rowCount:1,rows:[{id:'abc',status:'PENDING_REVIEW'}]};}};
+ const db={async query(query,values){
+  if(/CREATE TABLE/.test(query)){assert.equal(values,undefined);return {rowCount:0};}
+  sql=query;
+  assert.match(query,/INSERT INTO housing_review_queue/);
+  assert.equal(JSON.parse(values[3]).availability,'UNVERIFIED');
+  return {rowCount:1,rows:[{id:'abc',status:'PENDING_REVIEW'}]};
+ }};
  const result=await submit(req,db);
  assert.equal(result.status,'PENDING_REVIEW');
  assert.match(sql,/housing_review_queue/);
