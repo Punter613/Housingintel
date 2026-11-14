@@ -26,6 +26,12 @@ async function initDb() {
   await db.query('ALTER TABLE housing_listings ADD COLUMN IF NOT EXISTS property_id TEXT');
   await db.query('ALTER TABLE housing_listings ADD COLUMN IF NOT EXISTS source_id TEXT');
   await db.query('CREATE INDEX IF NOT EXISTS housing_listings_property_idx ON housing_listings(property_id)');
+  await db.query(`CREATE TABLE IF NOT EXISTS housing_review_queue (
+    id TEXT PRIMARY KEY, source TEXT NOT NULL, source_id TEXT NOT NULL,
+    payload JSONB NOT NULL, status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT housing_review_status_check CHECK(status IN ('PENDING_REVIEW','APPROVED','REJECTED'))
+  )`);
   return true;
 }
 async function upsertListing(row) {
