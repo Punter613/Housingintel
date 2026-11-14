@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HousingIntel — Review a rental lead</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}body{margin:0;background:#101827;color:#edf2fb}main{max-width:600px;margin:auto;padding:20px}h1{font-size:1.65rem}p,small{color:#bdcbe0;line-height:1.5}label{display:block;margin:14px 0 5px;font-weight:600}input,select,textarea,button{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;font:inherit}input,select,textarea{background:#1b2940;color:white;border:1px solid #53627a}button{background:#b4f0ce;color:#11221c;border:0;font-weight:700;margin-top:15px}button.secondary{background:#33435c;color:white}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2940;padding:12px;border-radius:8px}a{color:#b4f0ce}.notice{border-left:3px solid #b4f0ce;padding-left:12px}#result[hidden]{display:none}
+</style></head><body><main>
+<h1>HousingIntel</h1><p>Review a rental lead from your phone. This creates a structured record you can copy; <strong>it does not submit or save anything</strong>.</p>
+<p class="notice">Never enter voucher holder details, passwords, SSNs or payment information. Availability, voucher acceptance and utility allowance remain unverified.</p>
+<form id="lead">
+<label for="source">Listing source</label><select id="source" required><option value="ohio_housing_locator">Ohio Housing Locator</option><option value="affordablehousing">AffordableHousing.com</option><option value="tmha">TMHA</option><option value="zillow">Zillow</option><option value="apartments">Apartments.com</option><option value="manual_other">Other</option></select>
+<label for="url">Original listing URL</label><input id="url" type="url" placeholder="https://..." required>
+<label for="sourceId">Listing ID (or consistent review ID)</label><input id="sourceId" required maxlength="200" placeholder="e.g. listing-12345">
+<label for="address">Street address</label><input id="address" required placeholder="Street address">
+<label for="unit">Unit (if applicable)</label><input id="unit" placeholder="Apt 2B">
+<label for="city">City</label><input id="city" required placeholder="Warren">
+<label for="zip">Ohio ZIP</label><input id="zip" required inputmode="numeric" pattern="[0-9]{5}" maxlength="5">
+<label for="beds">Bedrooms (optional)</label><input id="beds" type="number" min="0" max="20" step="0.5">
+<label for="rent">Advertised monthly rent (optional)</label><input id="rent" type="number" min="0" max="100000" step="0.01">
+<label for="notes">Evidence / questions to verify</label><textarea id="notes" rows="3" placeholder="Landlord, utilities, deposit, inspection timing..."></textarea>
+<button type="submit">Prepare reviewed record</button>
+</form><section id="result" hidden><h2>Prepared record — not saved</h2><p>Review this JSON. Copy it to your trusted import workflow; do not paste sensitive information.</p><pre id="output"></pre><button id="copy" type="button">Copy JSON</button><button id="download" class="secondary" type="button">Download JSON</button><p id="status" role="status"></p></section>
+<p><a href="/api/listings">View collected listings (read-only)</a></p>
+<script>
+const get=id=>document.getElementById(id).value.trim();
+let payload='';
+document.getElementById('lead').addEventListener('submit',e=>{
+ e.preventDefault();
+ const url=new URL(get('url'));if(!['http:','https:'].includes(url.protocol)){alert('HTTP(S) URL required');return;}
+ const num=id=>get(id)===''?null:Number(get(id));
+ const record={source:get('source'),sourceId:get('sourceId'),source_url:url.href,address:get('address'),unit:get('unit')||null,
+ city:get('city'),state:'OH',zip:get('zip'),bedrooms:num('beds'),rent:num('rent'),
+ availability:'UNVERIFIED',evidenceNotes:get('notes')||null,capturedAt:new Date().toISOString()};
+ payload=JSON.stringify([record],null,2);
+ document.getElementById('output').textContent=payload;
+ document.getElementById('result').hidden=false;
+ document.getElementById('status').textContent='Prepared locally; no data transmitted.';
+});
+document.getElementById('copy').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText(payload);document.getElementById('status').textContent='Copied to clipboard';}
+ catch{document.getElementById('status').textContent='Clipboard unavailable; select the text above to copy';}
+});
+document.getElementById('download').addEventListener('click',()=>{
+ const blob=new Blob([payload],{type:'application/json'});
+ const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='housingintel-reviewed.json';link.click();
+ setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+});
+</script></main></body></html>
