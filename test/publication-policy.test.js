@@ -92,3 +92,20 @@ test('identity review insert failure propagates so caller can roll back',async()
  const other={...named,source:'affordablehousing',sourceId:'other',source_url:'https://example.org/other'};
  await assert.rejects(publishListing(base.client,other),/review storage failed/);
 });
+
+test('approval rolls back listing and queue decision when identity-review write fails',async()=>{
+ const existing=stored(named),other={...named,source:'affordablehousing',sourceId:'other',source_url:'https://example.org/other'};
+ const statements=[];
+ const client={async query(sql,params){
+  statements.push(sql);
+  if(sql.startsWith('SELECT payload,status'))return {rowCount:1,rows:[{payload:other,status:'PENDING_REVIEW'}]};
+  if(sql.startsWith('SELECT id,source,address'))return {rowCount:1,rows:sql.includes('source_url=$1')?[]:[existing]};
+  if(sql.startsWith('INSERT INTO housing_identity_review'))throw Error('identity review storage failed');
+  if(sql.startsWith('UPDATE housing_review_queue'))throw Error('queue should not be decided');
+  return {rowCount:1,rows:[]};
+ },release(){}};
+ await assert.rejects(approve({connect:async()=>client},'b'.repeat(64)),/identity review storage failed/);
+ assert.equal(statements.at(-1),'ROLLBACK');
+ assert.equal(statements.includes('COMMIT'),false);
+ assert.equal(statements.some(q=>q.startsWith('UPDATE housing_review_queue')),false);
+});
