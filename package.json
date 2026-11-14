@@ -1,0 +1,12 @@
+{
+  "name": "housingintel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent housing voucher search and verification engine",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
