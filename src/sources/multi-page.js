@@ -76,7 +76,7 @@ function extract(html,url){
 function discoverLinks(html,base,pattern,limit=12){
  if(!pattern||typeof pattern!=='string'||pattern.length>180||limit<=0)return [];
  const baseUrl=safeUrl(base),found=new Set();
- const re=/<a\\b[^>]*\\bhref\\s*=\\s*["']([^"']+)["'][^>]*>/gi;
+ const re=/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi;
  let m;while((m=re.exec(html))!==null&&found.size<limit){
   try{
    const u=safeUrl(new URL(m[1].replace(/&amp;/g,'&'),baseUrl).href);
