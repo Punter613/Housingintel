@@ -1,19 +1,21 @@
 'use strict';
-const { initDb } = require('./db');
-/**
- * Batch scraper entrypoint for Render cron.
- * Sources must be explicitly registered and permitted before ingestion.
- * This initial safe run only verifies storage and exits; it never invents listings.
- */
+const { initDb, upsertListing } = require('./db');
+const { collectYouthBuild } = require('./sources/tmha-youthbuild');
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   await initDb();
-  console.log('[housingintel-scraper] database initialized; no live source adapters enabled yet');
+  const rows = await collectYouthBuild();
+  let stored = 0;
+  for (const row of rows) {
+    const result = await upsertListing(row);
+    stored++;
+    console.log('[housingintel-scraper] stored',result.listingId,result.propertyId,result.matchStatus);
+  }
+  console.log('[housingintel-scraper] TMHA YouthBuild: '+stored+' public property records stored; vacancy and affordability remain unverified');
+  return { source:'tmha_youthbuild', stored };
 }
-if (require.main === module) {
-  main().then(() => process.exit(0)).catch(err => {
-    console.error('[housingintel-scraper]', err.message);
-    process.exitCode = 1;
-  });
-}
-module.exports = { main };
+if (require.main === module) main().then(() => process.exit(0)).catch(err => {
+  console.error('[housingintel-scraper]',err.message);
+  process.exitCode=1;
+});
+module.exports={main};
