@@ -28,3 +28,20 @@ test('re-detection refreshes timestamp but cannot reset decided status',async()=
  assert.ok(calls[0].includes('ON CONFLICT(id) DO UPDATE SET last_detected=now()'));
  await assert.rejects(decideIdentity(client,id,'CONFIRMED'),{status:409});
 });
+
+test('A then B and B then A produce one identical durable obligation',async()=>{
+ const worlds=[];
+ for(const order of [['listing_A','listing_B'],['listing_B','listing_A']]){
+  const rows=new Map();
+  const client={query:async(sql,params)=>{
+   assert.ok(sql.startsWith('INSERT INTO housing_identity_review'));
+   rows.set(params[0],{a:params[1],b:params[2]});
+   return {rowCount:1,rows:[]};
+  }};
+  await recordCandidate(client,order[0],order[1]);
+  await recordCandidate(client,order[1],order[0]);
+  assert.equal(rows.size,1);
+  worlds.push([...rows.entries()][0]);
+ }
+ assert.deepEqual(worlds[0],worlds[1]);
+});
