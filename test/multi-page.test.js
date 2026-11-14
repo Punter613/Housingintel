@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {extract,collectSources,allowedByRobots,robotsRules}=require('../src/sources/multi-page');
+const {extract,collectSources,discoverLinks,allowedByRobots,robotsRules}=require('../src/sources/multi-page');
 const url='https://example.org/rentals/one';
 const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Apartment',address:{streetAddress:'100 Test Ave',addressLocality:'Warren',addressRegion:'OH',postalCode:'44481'},numberOfBedrooms:1,offers:{price:650}})+'</script>';
 test('extracts structured Ohio rental without claiming voucher eligibility',()=>{
@@ -12,4 +12,19 @@ test('respects robots disallow',()=>{
 test('collects multiple URLs and reports blocked source',async()=>{
  let stored=0;const result=await collectSources([url,'https://example.org/blocked'],{robots:async u=>!u.endsWith('/blocked'),fetcher:async()=>html,store:async()=>{stored++;}});
  assert.equal(stored,1);assert.equal(result[1].status,'robots_blocked');
+});
+
+test('discovers only matching same-origin detail links',()=>{
+ const html='<a href="/rentals/101">One</a><a href="https://other.example/rentals/102">Outside</a><a href="/about">About</a>';
+ assert.deepEqual(discoverLinks(html,'https://example.org/search','/rentals/',10),['https://example.org/rentals/101']);
+});
+test('collects structured detail pages from a listing index',async()=>{
+ const index='https://example.org/search',detail='https://example.org/rentals/101';
+ const saved=[];
+ const report=await collectSources([{url:index,detailPathContains:'/rentals/',maxDetails:3}],{
+  robots:async()=>true,
+  fetcher:async u=>u===index?'<a href="/rentals/101">View rental</a>':html,
+  store:async row=>saved.push(row)
+ });
+ assert.equal(report[0].pages,2);assert.equal(saved.length,1);
 });
