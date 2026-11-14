@@ -83,6 +83,30 @@ const server = http.createServer(async (req, res) => {
         return send(503,{error:'service_unavailable'});
       }
     }
+    if(req.method==='GET' && url.pathname==='/api/identity-reviews'){
+      if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      await initDb();
+      const result=await db.query(`SELECT r.id,r.listing_a,r.listing_b,r.reason,r.status,r.first_detected,r.last_detected,
+        a.source AS source_a,a.source_url AS url_a,a.address AS address_a,
+        b.source AS source_b,b.source_url AS url_b,b.address AS address_b
+        FROM housing_identity_review r
+        LEFT JOIN housing_listings a ON a.id=r.listing_a
+        LEFT JOIN housing_listings b ON b.id=r.listing_b
+        WHERE r.status='PENDING_REVIEW' ORDER BY r.last_detected DESC LIMIT 100`);
+      return send(200,{reviews:result.rows});
+    }
+    if(req.method==='POST' && url.pathname==='/api/identity-reviews/decide'){
+      if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
+      if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(415,{error:'json_required'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      const {readBody}=require('./submissions');
+      let data;try{data=JSON.parse(await readBody(req));}catch{return send(400,{error:'invalid_json'});}
+      if(!data||typeof data!=='object'||Array.isArray(data)||!/^identity_[a-f0-9]{32}$/.test(String(data.id||''))||!['CONFIRMED','DISMISSED'].includes(data.status))return send(400,{error:'invalid_decision'});
+      const {decideIdentity}=require('./identity-review');
+      try{return send(200,await decideIdentity(db,data.id,data.status));}
+      catch(e){return send(e.status===409?409:503,{error:e.status===409?'review_already_decided':'service_unavailable'});}
+    }
     if(req.method==='GET' && url.pathname==='/api/collection-status'){
       const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','config','sources.json'),'utf8'));
       const configured=(config.pages||[]).filter(s=>s.enabled===true);
