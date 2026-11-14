@@ -22,7 +22,7 @@ function validate(raw,index){
  const row={source,sourceId,source_url:url.toString(),address,city,state,zip,unit:raw.unit||null,
    multiUnit:raw.multiUnit===true,addressVerified:false,bedrooms,rent,
    availability:raw.availability||'UNVERIFIED',voucherAcceptance:'UNVERIFIED',
-   tenantUtilityAllowance:null,importMethod:'MANUAL_REVIEW',evidenceNotes:raw.evidenceNotes||null,
+   tenantUtilityAllowance:null,importMethod:raw.importMethod==='AUTOMATED_JSON_LD'?'AUTOMATED_JSON_LD':'MANUAL_REVIEW',evidenceNotes:raw.evidenceNotes||null,
    capturedAt:raw.capturedAt||null,sourceClaims:raw.sourceClaims||null};
  identify(row);
  return row;
