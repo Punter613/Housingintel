@@ -73,6 +73,19 @@ function extract(html,url){
  }
  return out;
 }
+function discoverLinks(html,base,pattern,limit=12){
+ if(!pattern||typeof pattern!=='string'||pattern.length>180)return [];
+ const baseUrl=safeUrl(base),found=new Set();
+ const re=/<a\\b[^>]*\\bhref\\s*=\\s*["']([^"']+)["'][^>]*>/gi;
+ let m;while((m=re.exec(html))!==null&&found.size<limit){
+  try{
+   const u=safeUrl(new URL(m[1].replace(/&amp;/g,'&'),baseUrl).href);
+   if(u.origin!==baseUrl.origin||!u.pathname.includes(pattern))continue;
+   u.hash='';found.add(u.href);
+  }catch{}
+ }
+ return [...found];
+}
 async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,store=upsertListing}={}){
  const report=[];const seen=new Set();
  for(const item of sources){
@@ -80,11 +93,23 @@ async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,st
   try{
    safeUrl(url);
    if(!(await robots(url))){report.push({url,status:'robots_blocked',stored:0});continue;}
-   const rows=extract(await fetcher(url),url);let stored=0;
-   for(const row of rows){const id=row.source+'|'+row.sourceId;if(seen.has(id))continue;seen.add(id);await store(row);stored++;}
-   report.push({url,status:rows.length?'ok':'no_structured_listings',stored});
+   const html=await fetcher(url);
+   const pages=[{url,html}];
+   const links=discoverLinks(html,url,typeof item==='object'?item.detailPathContains:null,Math.min(12,Math.max(0,Number(item.maxDetails)||8)));
+   for(const detail of links){
+    try{
+     if(!(await robots(detail)))continue;
+     pages.push({url:detail,html:await fetcher(detail)});
+    }catch(e){report.push({url:detail,status:'error',error:e.message,stored:0});}
+   }
+   let stored=0,extracted=0;
+   for(const page of pages){
+    const rows=extract(page.html,page.url);extracted+=rows.length;
+    for(const row of rows){const id=row.source+'|'+row.sourceId;if(seen.has(id))continue;seen.add(id);await store(row);stored++;}
+   }
+   report.push({url,status:extracted?'ok':'no_structured_listings',pages:pages.length,stored});
   }catch(e){report.push({url,status:'error',error:e.message,stored:0});}
  }
  return report;
 }
-module.exports={safeUrl,robotsRules,allowedByRobots,jsonLd,extract,collectSources};
+module.exports={safeUrl,robotsRules,allowedByRobots,jsonLd,extract,discoverLinks,collectSources};
