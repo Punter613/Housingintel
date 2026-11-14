@@ -10,7 +10,7 @@ test('respects robots disallow',()=>{
  assert.equal(allowedByRobots(robotsRules('User-agent: *\nDisallow: /rentals'),'/rentals/one'),false);
 });
 test('collects multiple URLs and reports blocked source',async()=>{
- let stored=0;const result=await collectSources([url,'https://example.org/blocked'],{robots:async u=>!u.endsWith('/blocked'),fetcher:async()=>html,store:async()=>{stored++;}});
+ let stored=0;const result=await collectSources([url,'https://example.org/blocked'],{authorize:()=>({allowedPathPrefixes:['/']}),robots:async u=>!u.endsWith('/blocked'),fetcher:async()=>html,store:async()=>{stored++;}});
  assert.equal(stored,1);assert.equal(result[1].status,'robots_blocked');
 });
 
@@ -22,7 +22,7 @@ test('collects structured detail pages from a listing index',async()=>{
  const index='https://example.org/search',detail='https://example.org/rentals/101';
  const saved=[];
  const report=await collectSources([{url:index,detailPathContains:'/rentals/',maxDetails:3}],{
-  robots:async()=>true,
+  authorize:()=>({allowedPathPrefixes:['/']}),robots:async()=>true,
   fetcher:async u=>u===index?'<a href="/rentals/101">View rental</a>':html,
   store:async row=>saved.push(row)
  });
