@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {extract,collectSources,discoverLinks,allowedByRobots,robotsRules}=require('../src/sources/multi-page');
+const {extract,sourceFor,collectSources,discoverLinks,allowedByRobots,robotsRules}=require('../src/sources/multi-page');
 const url='https://example.org/rentals/one';
 const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Apartment',address:{streetAddress:'100 Test Ave',addressLocality:'Warren',addressRegion:'OH',postalCode:'44481'},numberOfBedrooms:1,offers:{price:650}})+'</script>';
 test('extracts structured Ohio rental without claiming voucher eligibility',()=>{
@@ -27,4 +27,14 @@ test('collects structured detail pages from a listing index',async()=>{
   store:async row=>saved.push(row)
  });
  assert.equal(report[0].pages,2);assert.equal(saved.length,1);
+});
+
+test('attributes known site names and marks automatic collection',()=>{
+ assert.equal(sourceFor('https://www.zillow.com/homedetails/123'),'zillow');
+ assert.equal(sourceFor('https://www.apartments.com/abc'),'apartments');
+ assert.equal(sourceFor('https://www.affordablehousing.com/oh/warren'),'affordablehousing');
+ assert.equal(sourceFor('https://example.org/listing'),'manual_other');
+ const rows=extract(html,'https://www.zillow.com/homedetails/example');
+ assert.equal(rows[0].source,'zillow');
+ assert.equal(rows[0].importMethod,'AUTOMATED_JSON_LD');
 });
