@@ -1,7 +1,7 @@
 'use strict';
 const {URL}=require('node:url');
-const {upsertListing}=require('./db');
-const {validate}=require('./import-listings');
+const {upsertListing}=require('../db');
+const {validate}=require('../import-listings');
 const crypto=require('node:crypto');
 const TIMEOUT=12000;
 function safeUrl(value){
