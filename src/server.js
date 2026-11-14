@@ -5,6 +5,7 @@ const path = require('node:path');
 const { database,initDb } = require('./db');
 const { evaluateGrossRent } = require('./eligibility');
 const {authorized,submit}=require('./submissions');
+const {submitPublic}=require('./public-leads');
 const port = Number(process.env.PORT || 10000);
 const server = http.createServer(async (req, res) => {
   const send = (status, data) => {
@@ -13,6 +14,11 @@ const server = http.createServer(async (req, res) => {
   };
   try {
     const url = new URL(req.url, 'http://localhost');
+    if(req.method==='GET' && url.pathname==='/add'){
+      const html=fs.readFileSync(path.join(__dirname,'..','public','add.html'));
+      res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
+      return res.end(html);
+    }
     if (req.method === 'GET' && url.pathname === '/') {
       const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'));
       res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'"});
@@ -33,6 +39,12 @@ const server = http.createServer(async (req, res) => {
       if (!db) return send(503, { ok:false, database:'not_configured' });
       await db.query('SELECT 1');
       return send(200, { ok:true, database:'connected' });
+    }
+    if(url.pathname==='/api/leads' && req.method==='POST'){
+      if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(415,{error:'json_required'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      try{return send(202,await submitPublic(req,db,req.socket.remoteAddress));}
+      catch(e){if(e.status===429)return send(429,{error:'Too many suggestions; try again later'});if(e.status===413)return send(413,{error:'Payload too large'});if(e.status===400||/Row |Invalid URL/.test(e.message))return send(400,{error:'Invalid listing details'});return send(503,{error:'service_unavailable'});}
     }
     if (url.pathname === '/api/review-submissions' && req.method === 'GET') {
       if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
