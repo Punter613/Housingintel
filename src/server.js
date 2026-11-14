@@ -60,6 +60,14 @@ const server = http.createServer(async (req, res) => {
       try{const result=await submit(req,db);return send(202,{accepted:true,id:result.id,status:result.status});}
       catch(e){if(e instanceof SyntaxError||/Row |Import must|Duplicate source|Exactly one listing/.test(e.message))return send(400,{error:'invalid_listing',detail:e.message});return send(e.status||503,{error:e.status===413?'payload_too_large':e.status===409?'review_locked':'service_unavailable'});}
     }
+    if(req.method==='GET' && url.pathname==='/api/collection-status'){
+      const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','config','sources.json'),'utf8'));
+      const configured=(config.pages||[]).filter(s=>s.enabled===true);
+      const db=database();
+      if(!db)return send(503,{error:'database_not_configured',enabledSources:configured.length});
+      const stats=await db.query('SELECT COUNT(*)::int AS listings, MAX(last_seen) AS latest_seen FROM housing_listings');
+      return send(200,{enabledSources:configured.length,listings:stats.rows[0].listings,latestSeen:stats.rows[0].latest_seen,note:'Latest seen is not proof that a listing remains available.'});
+    }
     if (req.method === 'GET' && url.pathname === '/api/listings') {
       const db = database();
       if (!db) return send(503, { error:'database_not_configured' });
