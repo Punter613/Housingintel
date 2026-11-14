@@ -1,8 +1,8 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HousingIntel — Approve leads</title><style>body{background:#101827;color:#edf2fb;font:16px system-ui;margin:0}main{max-width:650px;margin:auto;padding:20px}input,button{font:inherit;padding:12px;border-radius:8px}input{background:#1b2940;color:white;border:1px solid #53627a;width:100%;box-sizing:border-box}button{background:#b4f0ce;border:0;margin:8px 0;color:#11221c;font-weight:700}article{background:#1b2940;border:1px solid #53627a;border-radius:10px;padding:16px;margin:12px 0}a{color:#b4f0ce}small{color:#bdcbe0}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><main><h1>Pending rental reviews</h1><p>Authorized reviewers only. Approval publishes the source record; it does <strong>not</strong> verify vacancy, voucher eligibility, or rent.</p><label for="token">Review token</label><input id="token" type="password" autocomplete="off" placeholder="HOUSING_IMPORT_TOKEN"><button id="load">Load pending</button><p id="status" role="status"></p><section id="queue"></section><p><a href="/">Dashboard</a></p></main><script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HousingIntel — Approve leads</title><style>body{background:#101827;color:#edf2fb;font:16px system-ui;margin:0}main{max-width:650px;margin:auto;padding:20px}input,button{font:inherit;padding:12px;border-radius:8px}input{background:#1b2940;color:white;border:1px solid #53627a;width:100%;box-sizing:border-box}button{background:#b4f0ce;border:0;margin:8px 0;color:#11221c;font-weight:700}article{background:#1b2940;border:1px solid #53627a;border-radius:10px;padding:16px;margin:12px 0}a{color:#b4f0ce}small{color:#bdcbe0}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><main><h1>Pending rental reviews</h1><p>Authorized reviewers only. Approval publishes the source record; it does <strong>not</strong> verify vacancy, voucher eligibility, or rent.</p><label for="token">Review token</label><input id="token" type="password" autocomplete="off" placeholder="HOUSING_IMPORT_TOKEN"><button id="load">Load pending</button><p id="status" role="status"></p><section id="queue"></section><h2>Pending identity reviews</h2><p>Potential matches only. Decisions do not merge or modify listings.</p><section id="identityReviews"></section><p><a href="/">Dashboard</a></p></main><script>
 const token=document.getElementById('token'),status=document.getElementById('status'),queue=document.getElementById('queue');
 const auth=()=>({'Authorization':'Bearer '+token.value.trim()});
 async function load(){
- queue.replaceChildren();status.textContent='Loading…';
+ queue.replaceChildren();document.getElementById('identityReviews').replaceChildren();status.textContent='Loading…';
  try{const r=await fetch('/api/review-submissions',{headers:auth(),cache:'no-store'});if(!r.ok)throw Error('Queue HTTP '+r.status);
  const d=await r.json();status.textContent=d.queue.length+' pending lead(s)';
  for(const item of d.queue){
@@ -23,12 +23,51 @@ async function load(){
   detail.textContent='Directory lookup unavailable or not completed. No match conclusion can be drawn.';
  }
  context.append(detail);article.append(context);
+ const identity=document.createElement('section');identity.setAttribute('aria-label','Cross-source identity context');
+ const identityTitle=document.createElement('h3');identityTitle.textContent='Cross-source identity — not proof of the same rental';identity.append(identityTitle);
+ const identityDetail=document.createElement('p');const xc=item.crossSourceContext||{status:'LOOKUP_UNAVAILABLE',matches:[]};
+ if(xc.status==='CROSS_SOURCE_CANDIDATE'){
+  identityDetail.textContent='Possible cross-source address match (human review): '+xc.matches.map(m=>m.source+' / '+m.listingId).join('; ')+'. Independent source records are not automatically merged.';
+ }else if(xc.status==='NO_CROSS_SOURCE_MATCH'){
+  identityDetail.textContent='No cross-source address candidate found. Lookup completed.';
+ }else if(xc.status==='NEEDS_REVIEW'){
+  identityDetail.textContent='Address or unit identity needs human review. No automatic match was made.';
+ }else{
+  identityDetail.textContent='Cross-source lookup unavailable. No match conclusion can be drawn.';
+ }
+ identity.append(identityDetail);article.append(identity);
  const button=document.createElement('button');button.textContent='Approve this lead';button.onclick=async()=>{
  if(!confirm('Publish this source record? This does not verify availability or voucher eligibility.'))return;
  button.disabled=true;try{const r=await fetch('/api/approve',{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});
  const d=await r.json();if(!r.ok)throw Error(d.error||'Approval failed');status.textContent='Approved '+item.id;article.remove();
  }catch(e){status.textContent=e.message;button.disabled=false;}
  };article.append(document.createElement('br'),button);queue.append(article);
+ }
+ const ir=await fetch('/api/identity-reviews',{headers:auth(),cache:'no-store'});
+ if(!ir.ok)throw Error('Identity reviews HTTP '+ir.status);
+ const reviews=(await ir.json()).reviews||[];
+ const holder=document.getElementById('identityReviews');
+ if(!reviews.length){const empty=document.createElement('p');empty.textContent='No pending identity review pairs.';holder.append(empty);}
+ for(const review of reviews){
+  const card=document.createElement('article');
+  const h=document.createElement('h3');h.textContent='Possible cross-source address match';card.append(h);
+  for(const [source,url,address] of [[review.source_a,review.url_a,review.address_a],[review.source_b,review.url_b,review.address_b]]){
+   const p=document.createElement('p');p.textContent=(source||'Unknown source')+' — '+(address||'Address unavailable');card.append(p);
+   if(url){const a=document.createElement('a');a.href=url;a.textContent='View original source';a.rel='noopener noreferrer';a.target='_blank';card.append(a);}
+  }
+  const note=document.createElement('p');note.textContent='Candidate only. No rental facts, eligibility, or availability have been verified.';card.append(note);
+  for(const decision of ['CONFIRMED','DISMISSED']){
+   const btn=document.createElement('button');btn.textContent=decision==='CONFIRMED'?'Confirm identity':'Dismiss match';
+   btn.onclick=async()=>{
+    if(!confirm('Record '+decision.toLowerCase()+' identity decision? This does not merge listings.'))return;
+    btn.disabled=true;
+    try{const response=await fetch('/api/identity-reviews/decide',{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({id:review.id,status:decision})});
+     if(!response.ok)throw Error('Decision HTTP '+response.status);
+     card.remove();status.textContent='Identity review '+decision.toLowerCase();
+    }catch(e){status.textContent=e.message;btn.disabled=false;}
+   };card.append(btn);
+  }
+  holder.append(card);
  }
  }catch(e){status.textContent=e.message;}
 }

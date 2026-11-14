@@ -27,7 +27,7 @@ function parseCsv(input) {
     return Object.fromEntries(headers.map((h,j)=>[h,values[j]]));
   });
 }
-const norm=s=>String(s||'').toUpperCase().replace(/[.,#]/g,' ').replace(/\bBOULEVARD\b/g,'BLVD').replace(/\bAVENUE\b/g,'AVE').replace(/\bSTREET\b/g,'ST').replace(/\bROAD\b/g,'RD').replace(/\bDRIVE\b/g,'DR').replace(/\bLANE\b/g,'LN').replace(/\s+/g,' ').trim();
+const {norm}=require('./directory-normalize');
 function prepare(rows){
   const seen=new Set();
   return rows.map((r,i)=>{
