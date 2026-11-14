@@ -10,6 +10,19 @@ async function load(){
  const heading=document.createElement('h2');heading.textContent=p.address+', '+p.city;article.append(heading);
  const facts=document.createElement('p');facts.textContent='Source: '+item.source+' | Beds: '+(p.bedrooms??'unknown')+' | Rent: '+(p.rent==null?'unknown':'$'+p.rent)+' | Availability: UNVERIFIED';article.append(facts);
  const link=document.createElement('a');link.href=p.source_url;link.textContent='Original source';link.target='_blank';link.rel='noopener noreferrer';article.append(link);
+ const context=document.createElement('section');context.setAttribute('aria-label','Property research context');
+ const contextTitle=document.createElement('h3');contextTitle.textContent='Property research context — not rental evidence';context.append(contextTitle);
+ const detail=document.createElement('p');const dc=item.directoryContext||{status:'LOOKUP_UNAVAILABLE',matches:[]};
+ if(dc.status==='DIRECTORY_ADDRESS_CANDIDATE'){
+  const m=dc.matches[0];detail.textContent='Possible OHFA directory address match: '+(m.projectName||'Unnamed project')+'. Section 8 program flag: '+(m.section8Program?'Yes':'No')+'. This does not establish vacancy, rent, or voucher acceptance.';
+ }else if(dc.status==='AMBIGUOUS_DIRECTORY_ADDRESS'||dc.status==='NEEDS_REVIEW'){
+  detail.textContent='Directory identity needs manual review. No property context attached.';
+ }else if(dc.status==='NO_DIRECTORY_MATCH'){
+  detail.textContent='No directory context found for this address. Lookup completed.';
+ }else{
+  detail.textContent='Directory lookup unavailable or not completed. No match conclusion can be drawn.';
+ }
+ context.append(detail);article.append(context);
  const button=document.createElement('button');button.textContent='Approve this lead';button.onclick=async()=>{
  if(!confirm('Publish this source record? This does not verify availability or voucher eligibility.'))return;
  button.disabled=true;try{const r=await fetch('/api/approve',{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});
