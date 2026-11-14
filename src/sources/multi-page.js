@@ -1,6 +1,7 @@
 'use strict';
 const {URL}=require('node:url');
 const {queueCollected}=require('../collector-queue');
+const {authorizeSource}=require('../source-authorization');
 const {database}=require('../db');
 const {validate}=require('../import-listings');
 const crypto=require('node:crypto');
@@ -96,18 +97,20 @@ function discoverLinks(html,base,pattern,limit=12){
  }
  return [...found];
 }
-async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,store=async row=>queueCollected(database(),row)}={}){
+async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,store=async row=>queueCollected(database(),row),authorize=authorizeSource}={}){
  const report=[];const seen=new Set();
  for(const item of sources){
   const url=typeof item==='string'?item:item.url;
   try{
    safeUrl(url);
+   const permission=authorize(item);
    if(!(await robots(url))){report.push({url,status:'robots_blocked',stored:0});continue;}
    const html=await fetcher(url);
    const pages=[{url,html}];
    const links=discoverLinks(html,url,typeof item==='object'?item.detailPathContains:null,Math.min(12,Math.max(0,Number(item.maxDetails??8))));
    for(const detail of links){
     try{
+     if(!permission.allowedPathPrefixes.some(prefix=>detail.startsWith(new URL(prefix,url).href)))throw Error('SOURCE_AUTHORIZATION_DETAIL_SCOPE_MISMATCH');
      if(!(await robots(detail)))continue;
      pages.push({url:detail,html:await fetcher(detail)});
     }catch(e){report.push({url:detail,status:'error',error:e.message,stored:0});}
