@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Execute correction script in dry-run mode ONLY
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
