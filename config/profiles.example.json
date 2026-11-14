@@ -1,0 +1,12 @@
+{
+  "profileId": "example",
+  "housingAuthority": "Example Housing Authority",
+  "county": "Example County",
+  "state": "OH",
+  "bedrooms": 1,
+  "grossRentCeiling": 771,
+  "monthlyIncome": 0,
+  "deadline": "2027-01-11",
+  "preferredCities": [],
+  "utilitiesAllowanceSource": null
+}
