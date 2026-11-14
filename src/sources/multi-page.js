@@ -74,7 +74,7 @@ function extract(html,url){
  return out;
 }
 function discoverLinks(html,base,pattern,limit=12){
- if(!pattern||typeof pattern!=='string'||pattern.length>180)return [];
+ if(!pattern||typeof pattern!=='string'||pattern.length>180||limit<=0)return [];
  const baseUrl=safeUrl(base),found=new Set();
  const re=/<a\\b[^>]*\\bhref\\s*=\\s*["']([^"']+)["'][^>]*>/gi;
  let m;while((m=re.exec(html))!==null&&found.size<limit){
@@ -95,7 +95,7 @@ async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,st
    if(!(await robots(url))){report.push({url,status:'robots_blocked',stored:0});continue;}
    const html=await fetcher(url);
    const pages=[{url,html}];
-   const links=discoverLinks(html,url,typeof item==='object'?item.detailPathContains:null,Math.min(12,Math.max(0,Number(item.maxDetails)||8)));
+   const links=discoverLinks(html,url,typeof item==='object'?item.detailPathContains:null,Math.min(12,Math.max(0,Number(item.maxDetails??8))));
    for(const detail of links){
     try{
      if(!(await robots(detail)))continue;
