@@ -32,8 +32,7 @@ async function initDb() {
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT housing_review_status_check CHECK(status IN ('PENDING_REVIEW','APPROVED','REJECTED'))
   )`);
-  return true;
-}
+  await db.query(`CREATE TABLE IF NOT EXISTS housing_identity_review (\n    id TEXT PRIMARY KEY, listing_a TEXT NOT NULL, listing_b TEXT NOT NULL,\n    reason TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',\n    first_detected TIMESTAMPTZ NOT NULL DEFAULT now(),\n    last_detected TIMESTAMPTZ NOT NULL DEFAULT now(),\n    decided_at TIMESTAMPTZ,\n    CONSTRAINT housing_identity_review_status_check CHECK(status IN ('PENDING_REVIEW','CONFIRMED','DISMISSED')),\n    CONSTRAINT housing_identity_review_pair_check CHECK(listing_a < listing_b)\n  )`);\n  await db.query('CREATE INDEX IF NOT EXISTS housing_identity_review_pending_idx ON housing_identity_review(status,last_detected DESC)');\n  return true;\n}
 async function upsertListing(row) {
   const db = database();
   if (!db) throw new Error('DATABASE_URL required to store listings');
