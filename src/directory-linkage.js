@@ -1,6 +1,6 @@
 'use strict';
 // Read-only candidate linkage. A directory association is NOT rental availability evidence.
-const {norm}=require('./import-ohfa-directory');
+const {norm}=require('./directory-normalize');
 function candidateKey(x){
   const address=norm(x.address),city=norm(x.city),state=norm(x.state),zip=String(x.zip||'').trim();
   if(!/^\d+\s/.test(address)||!city||state!=='OH'||!/^\d{5}$/.test(zip))return null;
