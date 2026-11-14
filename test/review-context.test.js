@@ -29,3 +29,16 @@ test('lookup failure differs from no match and does not mutate lead',async()=>{
  assert.equal(rows[0].directoryContext.status,'LOOKUP_UNAVAILABLE');
  assert.deepEqual(rows[0].payload,original);
 });
+
+test('mutating matcher fails queue read loudly instead of returning LOOKUP_UNAVAILABLE',async()=>{
+ const leadCopy=structuredClone(lead);
+ const db={query:async()=>({rows:[property]})};
+ const mutatingMatcher=(record,properties)=>{
+   record.rent=0;
+   return {status:'DIRECTORY_ADDRESS_CANDIDATE',matches:properties};
+ };
+ await assert.rejects(
+   enrichQueue(db,[{id:'q',payload:leadCopy}],mutatingMatcher),
+   /Directory lookup mutated rent/
+ );
+});
