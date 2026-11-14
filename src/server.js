@@ -32,6 +32,12 @@ const server = http.createServer(async (req, res) => {
       await db.query('SELECT 1');
       return send(200, { ok:true, database:'connected' });
     }
+    if (url.pathname === '/api/review-submissions' && req.method === 'GET') {
+      if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      const result=await db.query("SELECT id,source,source_id,payload,status,submitted_at,updated_at FROM housing_review_queue WHERE status='PENDING_REVIEW' ORDER BY submitted_at DESC LIMIT 100");
+      return send(200,{queue:result.rows});
+    }
     if (url.pathname === '/api/review-submissions' && req.method === 'POST') {
       if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
       if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(415,{error:'json_required'});
