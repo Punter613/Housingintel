@@ -7,6 +7,7 @@ const { evaluateGrossRent } = require('./eligibility');
 const {authorized,submit}=require('./submissions');
 const {submitPublic}=require('./public-leads');
 const {approve}=require('./approve');
+const {enrichQueue}=require('./review-context');
 const port = Number(process.env.PORT || 10000);
 const server = http.createServer(async (req, res) => {
   const send = (status, data) => {
@@ -57,7 +58,7 @@ const server = http.createServer(async (req, res) => {
       const db=database();if(!db)return send(503,{error:'database_not_configured'});
       await initDb();
       const result=await db.query("SELECT id,source,source_id,payload,status,submitted_at,updated_at FROM housing_review_queue WHERE status='PENDING_REVIEW' ORDER BY submitted_at DESC LIMIT 100");
-      return send(200,{queue:result.rows});
+      return send(200,{queue:await enrichQueue(db,result.rows)});
     }
     if (url.pathname === '/api/review-submissions' && req.method === 'POST') {
       if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
