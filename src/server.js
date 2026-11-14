@@ -127,5 +127,10 @@ const server = http.createServer(async (req, res) => {
     return send(503, { error:'service_unavailable' });
   }
 });
-if (require.main === module) {\n  initDb().then(ready=>{\n    if(!ready)throw Error('DATABASE_URL required for HousingIntel startup');\n    server.listen(port,'0.0.0.0',()=>console.log('HousingIntel listening on',port));\n  }).catch(error=>{console.error('[startup schema]',error.message);process.exitCode=1;});\n}
+if (require.main === module) {
+  initDb().then(ready=>{
+    if(!ready)throw Error('DATABASE_URL required for HousingIntel startup');
+    server.listen(port,'0.0.0.0',()=>console.log('HousingIntel listening on',port));
+  }).catch(error=>{console.error('[startup schema]',error.message);process.exitCode=1;});
+}
 module.exports = { server };
