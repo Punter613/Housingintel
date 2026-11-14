@@ -1,0 +1,38 @@
+# HousingIntel — Render Blueprint
+# Platform decision (Muse, Nov 14, 2026, at Brian's direction):
+#   Render hosts the app (full Node runtime) in a SEPARATE deployment
+#   environment from SKSK ProTech — its own services, its own database,
+#   its own credentials. Nothing here references SKSK projects or keys.
+# Storage: a DEDICATED Supabase Postgres project for HousingIntel only.
+#   DATABASE_URL is set in the Render dashboard (sync: false) from that
+#   project's connection string. Never commit the value to this repo.
+# Alignment contract for the application code:
+#   - Web service entrypoint:  src/server.js  (must listen on process.env.PORT)
+#   - Scraper entrypoint:      src/scrape.js  (batch job, exits when done)
+#   - Database access:         process.env.DATABASE_URL (Postgres)
+services:
+  - type: web
+    name: housingintel
+    runtime: node
+    region: ohio
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+  - type: cron
+    name: housingintel-scraper
+    runtime: node
+    region: ohio
+    plan: starter
+    schedule: "0 */6 * * *"
+    buildCommand: npm install
+    startCommand: node src/scrape.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
