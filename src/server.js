@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { database } = require('./db');
 const { evaluateGrossRent } = require('./eligibility');
+const {authorized,submit}=require('./submissions');
 const port = Number(process.env.PORT || 10000);
 const server = http.createServer(async (req, res) => {
   const send = (status, data) => {
@@ -25,6 +26,13 @@ const server = http.createServer(async (req, res) => {
       if (!db) return send(503, { ok:false, database:'not_configured' });
       await db.query('SELECT 1');
       return send(200, { ok:true, database:'connected' });
+    }
+    if (url.pathname === '/api/review-submissions' && req.method === 'POST') {
+      if(!authorized(req.headers.authorization,process.env.HOUSING_IMPORT_TOKEN))return send(401,{error:'unauthorized'});
+      if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(415,{error:'json_required'});
+      const db=database();if(!db)return send(503,{error:'database_not_configured'});
+      try{const result=await submit(req,db);return send(202,{accepted:true,id:result.id,status:result.status});}
+      catch(e){if(e instanceof SyntaxError||/Row |Import must|Duplicate source|Exactly one listing/.test(e.message))return send(400,{error:'invalid_listing',detail:e.message});return send(e.status||503,{error:e.status===413?'payload_too_large':e.status===409?'review_locked':'service_unavailable'});}
     }
     if (req.method === 'GET' && url.pathname === '/api/listings') {
       const db = database();
