@@ -11,7 +11,8 @@ function clientDouble(existing=[]){
  async query(sql,params){
   statements.push(sql);
   if(sql.startsWith('SELECT pg_advisory'))return {rowCount:1,rows:[]};
-  if(sql.startsWith('SELECT id,source,address'))return {rowCount:published.length,rows:published.filter(x=>x.source_url===params[0]&&x.id!==params[1])};
+  if(sql.startsWith('SELECT id,source,address'))return {rowCount:published.length,rows:sql.includes('source_url=$1')?published.filter(x=>x.source_url===params[0]&&x.id!==params[1]):published.filter(x=>x.city.toLowerCase()===params[0].toLowerCase()&&x.state===params[1])};
+  if(sql.startsWith('INSERT INTO housing_identity_review'))return {rowCount:1,rows:[]};
   if(sql.startsWith('SELECT payload,status'))return {rowCount:1,rows:[{payload:weaker,status:'PENDING_REVIEW'}]};
   if(sql.startsWith('INSERT INTO housing_properties'))return {rowCount:1,rows:[]};
   if(sql.startsWith('INSERT INTO housing_listings')){
@@ -69,4 +70,25 @@ test('queue identity forks across source classification without changing publish
  await submitPublic(req({...input,source:'affordablehousing'}),db,'fork-test-b');
  assert.equal(queue.size,2);
  assert.deepEqual(new Set([...queue.values()].map(x=>x.source)),new Set(['manual_other','affordablehousing']));
+});
+
+test('provenance rejection writes neither listing nor identity review',async()=>{
+ const db=clientDouble([stored(named)]);
+ await assert.rejects(publishListing(db.client,weaker),{code:'PROVENANCE_REVIEW_REQUIRED'});
+ assert.equal(db.statements.some(q=>q.startsWith('INSERT INTO housing_identity_review')),false);
+ assert.equal(db.statements.some(q=>q.startsWith('INSERT INTO housing_listings')),false);
+});
+test('legitimate cross-source publication records candidate pair',async()=>{
+ const db=clientDouble([stored(named)]);
+ const other={...named,source:'affordablehousing',sourceId:'other',source_url:'https://example.org/other'};
+ await publishListing(db.client,other);
+ assert.equal(db.published.length,2);
+ assert.equal(db.statements.filter(q=>q.startsWith('INSERT INTO housing_identity_review')).length,1);
+});
+test('identity review insert failure propagates so caller can roll back',async()=>{
+ const base=clientDouble([stored(named)]);
+ const original=base.client.query;
+ base.client.query=async(q,p)=>{if(q.startsWith('INSERT INTO housing_identity_review'))throw Error('review storage failed');return original(q,p);};
+ const other={...named,source:'affordablehousing',sourceId:'other',source_url:'https://example.org/other'};
+ await assert.rejects(publishListing(base.client,other),/review storage failed/);
 });
