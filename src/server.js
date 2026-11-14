@@ -13,6 +13,11 @@ const server = http.createServer(async (req, res) => {
   };
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (req.method === 'GET' && url.pathname === '/') {
+      const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'));
+      res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'"});
+      return res.end(html);
+    }
     if (req.method === 'GET' && url.pathname === '/submit') {
       const html=fs.readFileSync(path.join(__dirname,'..','public','submit.html'));
       res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
@@ -22,9 +27,6 @@ const server = http.createServer(async (req, res) => {
       const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'review.html'));
       res.writeHead(200, {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'"});
       return res.end(html);
-    }
-    if (req.method === 'GET' && url.pathname === '/') {
-      return send(200, { app:'HousingIntel', status:'initializing', endpoints:['/health','/api/listings','/review','/submit'] });
     }
     if (req.method === 'GET' && url.pathname === '/health') {
       const db = database();
