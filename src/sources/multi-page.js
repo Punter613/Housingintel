@@ -1,6 +1,7 @@
 'use strict';
 const {URL}=require('node:url');
-const {upsertListing}=require('../db');
+const {queueCollected}=require('../collector-queue');
+const {database}=require('../db');
 const {validate}=require('../import-listings');
 const crypto=require('node:crypto');
 const TIMEOUT=12000;
@@ -95,7 +96,7 @@ function discoverLinks(html,base,pattern,limit=12){
  }
  return [...found];
 }
-async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,store=upsertListing}={}){
+async function collectSources(sources,{fetcher=fetchText,robots=robotsAllowed,store=async row=>queueCollected(database(),row)}={}){
  const report=[];const seen=new Set();
  for(const item of sources){
   const url=typeof item==='string'?item:item.url;
