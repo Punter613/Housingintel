@@ -7,7 +7,7 @@ function buildReviewContext(lead,properties,matcher=matchDirectory){
   for(const k of FIELDS)if(!Object.is(lead[k],before[k]))throw Error('Directory lookup mutated '+k);
   return {lead, directoryContext:context};
 }
-async function enrichQueue(db,queue){
+async function enrichQueue(db,queue,matcher=matchDirectory){
   const result=[];
   for(const item of queue){
     const lead=item.payload||{};
@@ -20,7 +20,7 @@ async function enrichQueue(db,queue){
       continue;
     }
     // Invariant violations and matcher defects must propagate, never masquerade as lookup failures.
-    const {directoryContext}=buildReviewContext(lead,found.rows);
+    const {directoryContext}=buildReviewContext(lead,found.rows,matcher);
     result.push({...item,directoryContext});
   }
   return result;
