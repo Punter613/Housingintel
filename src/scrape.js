@@ -5,7 +5,7 @@ async function main(){
  if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
  await initDb();
  // GitHub scheduled jobs stay free: no paid API request without explicit opt-in.
- if(!process.env.RENTCAST_API_KEY || process.env.RENTCAST_ALLOW_REQUESTS!=='YES'){
+ if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch' || !process.env.RENTCAST_API_KEY || process.env.RENTCAST_ALLOW_REQUESTS!=='YES'){
   console.log('[housingintel-scraper] storage ready; live API collection disabled pending authorized API key and opt-in');
   return {stored:0,reason:'no_authorized_api'};
  }
