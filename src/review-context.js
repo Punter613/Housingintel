@@ -23,7 +23,7 @@ async function enrichQueue(db,queue,matcher=matchDirectory){
     let crossSourceContext;
     try{
       const listings=await db.query(
-        'SELECT id,source,address,city,state,raw FROM housing_listings WHERE lower(city)=lower($1) AND state=$2 LIMIT 500',
+        'SELECT id,source,address,city,state,raw FROM housing_listings WHERE lower(city)=lower($1) AND state=$2',
         [String(lead.city||''),String(lead.state||'OH')]);
       const before=JSON.stringify(lead);
       crossSourceContext=compareCrossSource(lead,listings.rows);
