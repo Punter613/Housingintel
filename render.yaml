@@ -10,6 +10,13 @@
 #   - Web service entrypoint:  src/server.js  (must listen on process.env.PORT)
 #   - Scraper entrypoint:      src/scrape.js  (batch job, exits when done)
 #   - Database access:         process.env.DATABASE_URL (Postgres)
+# PHASE 2 (not in this Blueprint yet): the scheduled scraper.
+#   Render Cron Jobs have no free plan (smallest is a paid instance,
+#   roughly $1/mo for a short job every 6 hours) and require a payment
+#   method on file — that spend decision belongs to Brian. Free
+#   alternative: a GitHub Actions scheduled workflow running
+#   `node src/scrape.js` with DATABASE_URL stored as a repo secret.
+#   The cron service gets added here once Brian picks one.
 services:
   - type: web
     name: housingintel
@@ -18,19 +25,6 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: node src/server.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-  - type: cron
-    name: housingintel-scraper
-    runtime: node
-    region: ohio
-    plan: starter
-    schedule: "0 */6 * * *"
-    buildCommand: npm install
-    startCommand: node src/scrape.js
     envVars:
       - key: NODE_ENV
         value: production
