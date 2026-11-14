@@ -1,0 +1,33 @@
+name: Import OHFA Trumbull directory (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate source file and dry-run
+        run: |
+          test -f data/ohfa-trumbull.csv || { echo "Missing data/ohfa-trumbull.csv; do not run import"; exit 1; }
+          node src/import-ohfa-directory.js data/ohfa-trumbull.csv
+          node - <<'JS'
+          const fs=require('fs'),{parseCsv,prepare}=require('./src/import-ohfa-directory');
+          const r=prepare(parseCsv(fs.readFileSync('data/ohfa-trumbull.csv','utf8')));
+          if(r.length!==164||r.filter(x=>x.row.section_8_program==='Yes').length!==98)process.exit(1);
+          console.log('SOURCE ACCEPTED: 164 distinct properties, 98 Section 8 flags');
+          JS
+      - name: Import and verify
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "Missing DATABASE_URL secret"; exit 1; }
+          node src/import-ohfa-directory.js data/ohfa-trumbull.csv --commit
+          node src/verify-ohfa-directory.js data/ohfa-trumbull.csv
