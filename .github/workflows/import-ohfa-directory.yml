@@ -13,10 +13,13 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Prepare official OHFA source
+        run: |
+          mkdir -p data
+          python3 scripts/prepare-ohfa-trumbull.py data/ohfa-trumbull.csv
       - name: Validate source file and dry-run
         run: |
-          test -f data/ohfa-trumbull.csv || { echo "Missing data/ohfa-trumbull.csv; do not run import"; exit 1; }
           node src/import-ohfa-directory.js data/ohfa-trumbull.csv
           node - <<'JS'
           const fs=require('fs'),{parseCsv,prepare}=require('./src/import-ohfa-directory');
