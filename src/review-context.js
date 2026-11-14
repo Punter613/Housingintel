@@ -12,17 +12,14 @@ async function enrichQueue(db,queue,matcher=matchDirectory){
   const result=[];
   for(const item of queue){
     const lead=item.payload||{};
-    let found;
+    let directoryContext;
     try{
-      found=await db.query('SELECT id,source,project_name,section_8_program,address,city,state,zip FROM housing_property_directory WHERE county=$1 AND state=$2 AND zip=$3 AND lower(city)=lower($4)', ['TRUMBULL','OH',String(lead.zip||''),String(lead.city||'')]);
+      const found=await db.query('SELECT id,source,project_name,section_8_program,address,city,state,zip FROM housing_property_directory WHERE county=$1 AND state=$2 AND zip=$3 AND lower(city)=lower($4)', ['TRUMBULL','OH',String(lead.zip||''),String(lead.city||'')]);
+      directoryContext=buildReviewContext(lead,found.rows,matcher).directoryContext;
     }catch(error){
-      // Only a database lookup failure may degrade to unavailable.
-      result.push({...item,directoryContext:{status:'LOOKUP_UNAVAILABLE',matches:[]},crossSourceContext:{status:'LOOKUP_UNAVAILABLE',matches:[]}});
-      continue;
+      if(error.message.startsWith('Directory lookup mutated'))throw error;
+      directoryContext={status:'LOOKUP_UNAVAILABLE',matches:[]};
     }
-    // Invariant violations and matcher defects must propagate, never masquerade as lookup failures.
-    const {directoryContext}=buildReviewContext(lead,found.rows,matcher);
-    // Read-time only: do not write candidate data into the lead or queue payload.
     let crossSourceContext;
     try{
       const listings=await db.query(
