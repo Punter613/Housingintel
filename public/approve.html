@@ -23,6 +23,19 @@ async function load(){
   detail.textContent='Directory lookup unavailable or not completed. No match conclusion can be drawn.';
  }
  context.append(detail);article.append(context);
+ const identity=document.createElement('section');identity.setAttribute('aria-label','Cross-source identity context');
+ const identityTitle=document.createElement('h3');identityTitle.textContent='Cross-source identity — not proof of the same rental';identity.append(identityTitle);
+ const identityDetail=document.createElement('p');const xc=item.crossSourceContext||{status:'LOOKUP_UNAVAILABLE',matches:[]};
+ if(xc.status==='CROSS_SOURCE_CANDIDATE'){
+  identityDetail.textContent='Possible cross-source address match (human review): '+xc.matches.map(m=>m.source+' / '+m.listingId).join('; ')+'. Independent source records are not automatically merged.';
+ }else if(xc.status==='NO_CROSS_SOURCE_MATCH'){
+  identityDetail.textContent='No cross-source address candidate found. Lookup completed.';
+ }else if(xc.status==='NEEDS_REVIEW'){
+  identityDetail.textContent='Address or unit identity needs human review. No automatic match was made.';
+ }else{
+  identityDetail.textContent='Cross-source lookup unavailable. No match conclusion can be drawn.';
+ }
+ identity.append(identityDetail);article.append(identity);
  const button=document.createElement('button');button.textContent='Approve this lead';button.onclick=async()=>{
  if(!confirm('Publish this source record? This does not verify availability or voucher eligibility.'))return;
  button.disabled=true;try{const r=await fetch('/api/approve',{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});
