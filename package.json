@@ -4,9 +4,10 @@
   "private": true,
   "description": "Independent housing voucher search and verification engine",
   "scripts": {
-    "test": "node --test",
+    "test": "npm run check:syntax && node --test",
     "start": "node src/server.js",
-    "scrape": "node src/scrape.js"
+    "scrape": "node src/scrape.js",
+    "check:syntax": "node scripts/check-syntax.js"
   },
   "engines": {
     "node": ">=20"
