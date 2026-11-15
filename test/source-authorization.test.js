@@ -21,3 +21,9 @@ test('collector makes no network requests without permission',async()=>{
  const result=await collectSources([item],{fetcher:async()=>{calls++;return '';},robots:async()=>{calls++;return true;},store:async()=>{calls++;}});
  assert.equal(calls,0);assert.equal(result[0].status,'error');assert.match(result[0].error,/SOURCE_AUTHORIZATION_MISSING/);
 });
+
+test('rejects conditional permissions and unrecognized frequency restrictions',()=>{
+ assert.throws(()=>authorizeSource(item,[{...permitted,determination:'PERMITTED_WITH_CONDITIONS'}],now),/CONDITIONS_UNSUPPORTED/);
+ assert.throws(()=>authorizeSource(item,[{...permitted,conditions:[{minDelaySeconds:60}]}],now),/UNSUPPORTED_CONDITION/);
+ assert.throws(()=>authorizeSource(item,[{...permitted,requestsPerDay:10}],now),/UNSUPPORTED_FIELD/);
+});
