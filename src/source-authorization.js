@@ -10,6 +10,12 @@ function authorizeSource(item,records=loadRecords(),now=new Date()){
  const matching=records.filter(r=>r.origin===origin);
  if(matching.length!==1)throw Error('SOURCE_AUTHORIZATION_MISSING');
  const r=matching[0];
+ // Only the explicitly supported permission model is enforceable. Unknown
+ // clauses (including frequency/delay quotas) must never be silently ignored.
+ const allowedKeys=new Set(['origin','provider','determination','determinedAt','expiresAt','evidenceUrl','evidenceQuote','method','allowedPathPrefixes','sourceMaxPagesPerRun','configuredMaxPagesPerRun','conditions']);
+ if(Object.keys(r).some(k=>!allowedKeys.has(k)))throw Error('SOURCE_AUTHORIZATION_UNSUPPORTED_FIELD');
+ if(r.conditions!==undefined && (!Array.isArray(r.conditions)||r.conditions.length!==0))throw Error('SOURCE_AUTHORIZATION_UNSUPPORTED_CONDITION');
+ if(r.determination==='PERMITTED_WITH_CONDITIONS')throw Error('SOURCE_AUTHORIZATION_CONDITIONS_UNSUPPORTED');
  if(!['PERMITTED','PERMITTED_WITH_CONDITIONS'].includes(r.determination))throw Error('SOURCE_AUTHORIZATION_DENIED');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(r.determinedAt||'')||!/^\d{4}-\d{2}-\d{2}$/.test(r.expiresAt||'')||!Number.isFinite(Date.parse(r.determinedAt))||!Number.isFinite(Date.parse(r.expiresAt))||Date.parse(r.determinedAt)>now.getTime()||Date.parse(r.expiresAt)<now.getTime())throw Error('SOURCE_AUTHORIZATION_EXPIRED');
  if(!r.evidenceUrl||!r.evidenceQuote||!r.provider)throw Error('SOURCE_AUTHORIZATION_EVIDENCE_MISSING');
